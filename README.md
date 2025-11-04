@@ -26,5 +26,5 @@ muralX is a decentralized platform that allows users to commission, create, and 
 - Enhance social features and discovery tools
 - Explore scaling solutions and multi-chain support
 
-## Contributors / Group Members
-- @5upertramp — Role / GitHub Profile
+## Contributors
+- @5upertramp 
