@@ -1,13 +1,12 @@
-# MuralX — Explore, Express, Experience
+# muralX — Explore, Express, Experience
 
-## Mission
-Art should be accessible to everyone, not a privilege of the few. MuralX democratizes commissioned art, making it a shared experience for artists, patrons, and the wider community.
+## About **mural**X
+Once, commissioning art was a privilege of the few. Today, it can be for anyone.
 
-## Background
-Historically, commissioning art was reserved for wealthy patrons. Even today, finding artwork that truly resonates can feel overwhelming or out of reach. MuralX was inspired by the idea that creativity should belong to all, and that technology can help bridge the gap between artists and those who appreciate their work.
+Discover your next Rembrandt, start your own Guggenheim collection, or release your inner Frida. MuralX brings artists and art lovers together to spark ideas, create made-to-order artworks, and make a lasting impact in the community. 
 
-## Project Overview
-MuralX is a decentralized platform where users can commission, create, and share art. Built for all, anyone can act as a patron or an artist. Built by all, blockchain technology ensures the commission process is fair, transparent, and secure, with no platform commission. The platform fosters a community where creativity is shared, celebrated, and accessible to everyone.
+## The muralX Experience
+muralX is a decentralized platform that allows users to commission, create, and share art. Participants can take on the role of a patron, an artist, or both. Patrons can commission artworks crafted to their specific vision, while artists can showcase their creations and compete for commissions. The platform functions like a dynamic museum, where commissions, collections, and creations are displayed for the community to explore. Powered by blockchain, muralX ensures direct communication between patrons and artists, promising a fair, transparent, and secure process with no platform fees.
 
 ## Features
 - Commissioning system with down payment, negotiation, and escrow
