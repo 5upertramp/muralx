@@ -1,272 +1,389 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
-import { ethers } from 'ethers';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from "react"; 
+import Navbar from "@/components/Navbar";
+import { ethers } from "ethers"; 
+import { useRouter, useParams } from 'next/navigation'; 
 
-// --- Utility function for addresses ---
-// Function to shorten an Ethereum address for cleaner display
+// --- 1. CONTRACT CONSTANTS (LATEST CONTRACT) ---
+const MURALX_CONTRACT_ADDRESS = '0x6EF00175Da07083A0965ff521C76338D2EC1C9A4'; 
+const MURALX_ABI = [
+	{ "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "acceptCommission", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+	{ "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "approveCommission", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+    { "inputs": [{ "internalType": "address", "name": "", "type": "address" }, { "internalType": "uint256", "name": "", "type": "uint256" }], "name": "artistCommissions", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+	{ "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }, { "internalType": "address", "name": "_artist", "type": "address" }], "name": "assignArtist", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+    { "inputs": [{ "internalType": "address", "name": "", "type": "address" }, { "internalType": "uint256", "name": "", "type": "uint256" }], "name": "clientCommissions", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+	{ "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "clientFinalizeNegotiation", "outputs": [], "stateMutability": "payable", "type": "function" },
+	{ "inputs": [], "name": "commissionIdCounter", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "name": "commissions", "outputs": [{ "internalType": "uint256", "name": "id", "type": "uint256" }, { "internalType": "address", "name": "client", "type": "address" }, { "internalType": "address", "name": "artist", "type": "address" }, { "internalType": "uint256", "name": "value", "type": "uint256" }, { "internalType": "string", "name": "title", "type": "string" }, { "internalType": "string", "name": "description", "type": "string" }, { "internalType": "enum MuralX.CommissionStatus", "name": "status", "type": "uint8" }, { "internalType": "bool", "name": "clientAgreed", "type": "bool" }, { "internalType": "bool", "name": "artistAgreed", "type": "bool" }, { "internalType": "uint256", "name": "finishDate", "type": "uint256" }, { "internalType": "bool", "name": "isProposal", "type": "bool" }], "stateMutability": "view", "type": "function" },
+	{ "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }, { "internalType": "uint256", "name": "_newValue", "type": "uint256" }], "name": "counterPropose", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+    { "inputs": [{ "internalType": "address", "name": "_client", "type": "address" }, { "internalType": "string", "name": "_title", "type": "string" }, { "internalType": "string", "name": "_description", "type": "string" }, { "internalType": "uint256", "name": "_value", "type": "uint256" }], "name": "createArtistProposal", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "payable", "type": "function" },
+	{ "inputs": [{ "internalType": "address", "name": "_artist", "type": "address" }, { "internalType": "string", "name": "_title", "type": "string" }, { "internalType": "string", name: "_description", type: "string" }, { "internalType": "uint256", name: "_finishDate", type: "uint256" }], "name": "createClientCommission", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "payable", "type": "function" },
+	{ "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "deliverWork", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+	{ "inputs": [], "name": "getArtistCommissionIds", "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }], "stateMutability": "view", "type": "function" },
+	{ "inputs": [], "name": "getClientCommissionIds", "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }], "stateMutability": "view", "type": "function" },
+	{ "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "getCommission", "outputs": [{ "internalType": "uint256", "name": "id", "type": "uint256" }, { "internalType": "address", "name": "client", "type": "address" }, { "internalType": "address", "name": "artist", "type": "address" }, { "internalType": "uint256", "name": "value", "type": "uint256" }, { "internalType": "string", "name": "title", "type": "string" }, { "internalType": "string", name: "description", type: "string" }, { "internalType": "enum MuralX.CommissionStatus", name: "status", type: "uint8" }, { "internalType": "bool", name: "clientAgreed", type: "bool" }, { "internalType": "bool", name: "artistAgreed", type: "bool" }, { "internalType": "uint256", name: "finishDate", type: "uint256" }, { "internalType": "bool", name: "isProposal", type: "bool" }], "stateMutability": "view", "type": "function" }
+];
+
+
+// Helper functions
+const getStatusText = (statusIndex: number): string => {
+    switch (statusIndex) {
+        case 0: return 'Open';
+        case 1: return 'In Progress';
+        case 2: return 'Review Pending';
+        case 3: return 'Disputed';
+        case 4: return 'Closed';
+        default: return 'Unknown';
+    }
+};
+
+const formatDeadline = (timestamp: number): string => {
+    if (timestamp === 0) return 'N/A';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString();
+};
+
 const shortenAddress = (address: string) => {
     if (!address) return '';
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 };
 
-// --- Contract Constants ---
-const MURALX_CONTRACT_ADDRESS = '0x4c3a3c7589C1f3d71FD63b682f454Dacc93e98Fd'; 
-const MURALX_ABI = [
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "commissions",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "id",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "patron",
-        "type": "address"
-      },
-      {
-        "internalType": "string",
-        "name": "title",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "description",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "budget",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "isCompleted",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "_title",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_description",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_budget",
-        "type": "uint256"
-      }
-    ],
-    "name": "createCommission",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getCommissionCount",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
-]; 
-
-
-export default function CommissionPage() {
-  const params = useParams();
-  const router = useRouter(); 
-  const commissionId = Number(params.id);
-  const [commission, setCommission] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Function to fetch a single commission by ID
-  const fetchCommissionDetail = async (id: number) => {
-    if (typeof window.ethereum === 'undefined' || id === 0) return;
-    setIsLoading(true);
-
-    try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const contract = new ethers.Contract(
-            MURALX_CONTRACT_ADDRESS, 
-            MURALX_ABI, 
-            provider
-        );
-
-        // We fetch by array index (id - 1)
-        const commissionData = await contract.commissions(id - 1); 
-
-        const fetchedCommission = {
-            id: id,
-            patron: commissionData[1],
-            title: commissionData[2],
-            description: commissionData[3],
-            budget: ethers.formatEther(commissionData[4]), 
-            status: commissionData[5] ? 'completed' : 'open',
-        };
-        
-        setCommission(fetchedCommission);
-    } catch (err) {
-        console.error("Error fetching commission detail:", err);
-        setCommission(null); 
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (commissionId) {
-        fetchCommissionDetail(commissionId);
-    }
-  }, [commissionId]);
-
-  if (isLoading) return <div style={{padding: '4rem', color: 'white'}}>Loading Commission #{commissionId}...</div>;
-  if (!commission) return <div style={{padding: '4rem', color: 'white'}}>Commission not found</div>;
-
-
-  return (
-    <div style={{ minHeight: "100vh", background: "black", color: "white" }}>
-      <Navbar />
-      
-      <main style={{
-        padding: '2rem 4rem',
-        fontFamily: 'sans-serif',
-      }}>
-        {/* Back Button was removed here */}
-
-        {/* Main Content Area */}
-        <div style={{
-            display: 'flex',
-            flexDirection: 'row',
-            gap: '3rem',
-            alignItems: 'flex-start',
-        }}>
-            {/* Left Column: Placeholder Art */}
-            <div style={{
-                flex: 1,
-                backgroundColor: '#222',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                aspectRatio: '4/3',
-                position: 'relative',
-                overflow: 'hidden',
-            }}>
-                {/* Visual placeholder */}
-                {[...Array(10)].map((_, i) => {
-                    const size = Math.floor(Math.random() * 50) + 20;
-                    const top = Math.random() * 100;
-                    const left = Math.random() * 100;
-                    const color = `hsl(${Math.random() * 360}, 70%, 60%)`;
-                    return (
-                        <div key={i} style={{
-                            position: 'absolute',
-                            width: `${size}px`,
-                            height: `${size}px`,
-                            borderRadius: '50%',
-                            backgroundColor: color,
-                            opacity: 0.6,
-                            top: `${top}%`,
-                            left: `${left}%`,
-                            transform: 'translate(-50%, -50%)'
-                        }} />
-                    )
-                })}
-                <span style={{ fontSize: '1.5rem', opacity: 0.3, position: 'absolute' }}>[ART PREVIEW]</span>
-            </div>
-            
-            {/* Right Column: Updated Detail Display (NO BOX STYLING) */}
-            <div style={{ 
-                flex: 1, 
-                borderRadius: '12px',
-                marginTop: '-15px', /* Nudge UP the right column */
-            }}>
-                
-                {/* Title and ID Header (Still uses the gray separator) */}
-                <div style={{ 
-                    borderBottom: '1px solid #333',
-                    paddingBottom: '0.5rem', 
-                    marginBottom: '0.75rem' /* More compact space below header */
-                }}>
-                    <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.25rem 0' }}>
-                        {commission.title}
-                    </h1>
-                    <p style={{ margin: '0', color: '#aaa', fontSize: '1rem' }}> 
-                        Commission #{commission.id}
-                    </p>
-                </div>
-
-                {/* Description - Made slightly more compact */}
-                <p style={{ 
-                    fontSize: '1rem', 
-                    marginBottom: '1rem', /* More compact space below description */
-                    color: '#ccc' 
-                }}>
-                    {commission.description}
-                </p>
-
-                {/* Status */}
-                <div style={{ marginBottom: '0.25rem' }}> 
-                    <h3 style={{ fontSize: '1rem', color: '#aaa', margin: '0 0 0.05rem 0', textTransform: 'uppercase' }}>Status</h3> 
-                    <p style={{ 
-                        margin: 0, 
-                        fontWeight: 'bold',
-                        fontSize: '1rem', 
-                        color: commission.status === 'open' ? '#32cd32' : '#ffc300' 
-                    }}>
-                        {commission.status.toUpperCase()}
-                    </p>
-                </div>
-
-                {/* Budget */}
-                <div style={{ marginBottom: '0.25rem' }}> 
-                    <h3 style={{ fontSize: '1rem', color: '#aaa', margin: '0 0 0.05rem 0', textTransform: 'uppercase' }}>Patron Budget</h3> 
-                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem', color: '#fff' }}> 
-                        {commission.budget} ETH
-                    </p>
-                </div>
-
-                {/* Patron Address */}
-                <div style={{ marginBottom: '0' }}>
-                    <h3 style={{ fontSize: '1rem', color: '#aaa', margin: '0 0 0.05rem 0', textTransform: 'uppercase' }}>Patron Address</h3> 
-                    <a 
-                        href={`https://sepolia.etherscan.io/address/${commission.patron}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#00aaff', textDecoration: 'none', fontWeight: 'bold', fontSize: '1rem' }} 
-                    >
-                        {shortenAddress(commission.patron)} ↗
-                    </a>
-                </div>
-            </div>
-        </div>
-      </main>
-    </div>
-  );
+// Define the structure of the commission data
+interface Commission {
+    id: number;
+    client: string;
+    artist: string;
+    value: string;
+    title: string;
+    description: string;
+    statusIndex: number;
+    statusText: string;
+    clientAgreed: boolean;
+    artistAgreed: boolean;
+    finishDate: string;
+    isProposal: boolean;
 }
+
+export default function CommissionDetailPage() {
+    const router = useRouter();
+    const params = useParams();
+    const commissionId = params.id; 
+    
+    const [commission, setCommission] = useState<Commission | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [userAddress, setUserAddress] = useState<string | null>(null);
+
+    // --- Ethers.js READ Logic ---
+    const fetchCommissionDetails = async (id: number) => {
+        if (typeof window.ethereum === 'undefined') {
+            console.error("Wallet not detected.");
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const address = await signer.getAddress();
+            setUserAddress(address.toLowerCase());
+            
+            const contract = new ethers.Contract(MURALX_CONTRACT_ADDRESS, MURALX_ABI, provider);
+
+            const commissionData = await contract.getCommission(id); 
+
+            setCommission({
+                id: id,
+                client: commissionData[1].toLowerCase(),
+                artist: commissionData[2].toLowerCase(),
+                value: ethers.formatEther(commissionData[3]),
+                title: commissionData[4],
+                description: commissionData[5],
+                statusIndex: Number(commissionData[6]),
+                statusText: getStatusText(Number(commissionData[6])),
+                clientAgreed: commissionData[7],
+                artistAgreed: commissionData[8],
+                finishDate: formatDeadline(Number(commissionData[9])),
+                isProposal: commissionData[10],
+            });
+
+        } catch (err) {
+            console.error("Error fetching commission details:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const idParam = Array.isArray(commissionId) ? commissionId[0] : commissionId;
+        
+        if (idParam) {
+            const id = Number(idParam);
+            if (!isNaN(id)) {
+                fetchCommissionDetails(id);
+            } else {
+                setLoading(false);
+            }
+        }
+    }, [commissionId]);
+
+    if (loading) {
+        return (
+             <div style={{ minHeight: "100vh", background: "black", color: "white", padding: "2rem" }}>
+                <Navbar />
+                <h1 style={{ color: '#aaa' }}>Loading Commission #{commissionId}...</h1>
+            </div>
+        );
+    }
+
+    if (!commission) {
+        return (
+             <div style={{ minHeight: "100vh", background: "black", color: "white", padding: "2rem" }}>
+                <Navbar />
+                <h1 style={{ color: 'red' }}>Commission Not Found</h1>
+            </div>
+        );
+    }
+    
+    // Determine the user's role
+    const isClient = userAddress && commission.client === userAddress;
+    const isArtist = userAddress && commission.artist === userAddress;
+    const isAssigned = commission.artist !== ethers.ZeroAddress.toLowerCase();
+
+    // --- Action Button Logic Placeholder ---
+    const renderActionButtons = () => {
+        if (commission.statusText === 'Closed') {
+            return <p style={{ color: '#32cd32', fontSize: '1.2rem', fontWeight: 'bold' }}>Transaction Complete ✅</p>;
+        }
+
+        if (commission.statusText === 'Open') {
+            if (commission.isProposal) {
+                if (isClient && !commission.clientAgreed) {
+                    return (
+                        <>
+                            <button style={{ backgroundColor: '#32cd32' }}>Accept Proposal (Pay Value)</button>
+                            <button style={{ backgroundColor: '#ffc300' }}>Counter-Propose Value</button>
+                        </>
+                    );
+                }
+            } else {
+                if (!isAssigned) {
+                     return <button style={{ backgroundColor: '#007FFF' }}>Propose to Take Commission</button>;
+                }
+                
+                if (isArtist && !commission.artistAgreed) {
+                    return (
+                        <>
+                            <button style={{ backgroundColor: '#32cd32' }}>Accept Commission</button>
+                            <button style={{ backgroundColor: '#ffc300' }}>Counter-Propose Value</button>
+                        </>
+                    );
+                }
+            }
+
+            if (commission.clientAgreed && commission.artistAgreed && isClient) {
+                return <button style={{ backgroundColor: '#FF7F50' }}>Finalize Negotiation (Deposit Funds)</button>;
+            }
+        }
+
+        if (commission.statusText === 'In Progress' && isArtist) {
+             return <button style={{ backgroundColor: '#007FFF' }}>Deliver Work</button>;
+        }
+        
+        if (commission.statusText === 'Review Pending' && isClient) {
+            return <button style={{ backgroundColor: '#32cd32' }}>Approve & Release Funds</button>;
+        }
+
+        return <p style={{ color: '#aaa' }}>Awaiting action from the other party...</p>;
+    };
+
+    // --- Component JSX (Original Layout and Styling with requested updates) ---
+    return (
+        <div style={{ minHeight: "100vh", background: "black", color: "white", fontFamily: 'sans-serif' }}>
+            <Navbar />
+            
+            <main style={{
+                padding: '2rem 4rem',
+            }}>
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: '3rem',
+                    alignItems: 'flex-start',
+                }}>
+                    
+                    {/* LEFT COLUMN: Procedurally Generated Art Preview (Original Styling) */}
+                    <div style={{
+                        flex: 1,
+                        backgroundColor: '#222',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        aspectRatio: '4/3',
+                        position: 'relative',
+                        overflow: 'hidden',
+                    }}>
+                        {/* Visual placeholder: EXACT ORIGINAL CIRCLE PATTERN CODE */}
+                        {[...Array(10)].map((_, i) => {
+                            const seed = (commission.id * 1000) + i; 
+                            const random = (seed) => {
+                                const x = Math.sin(seed) * 10000;
+                                return x - Math.floor(x);
+                            };
+                            
+                            const size = Math.floor(random(seed + 1) * 50) + 20;
+                            const top = random(seed + 2) * 100;
+                            const left = random(seed + 3) * 100;
+                            const hue = random(seed + 4) * 360;
+                            const color = `hsl(${hue}, 70%, 60%)`;
+                            
+                            return (
+                                <div key={i} style={{
+                                    position: 'absolute',
+                                    width: `${size}px`,
+                                    height: `${size}px`,
+                                    borderRadius: '50%',
+                                    backgroundColor: color,
+                                    opacity: 0.6, 
+                                    top: `${top}%`,
+                                    left: `${left}%`,
+                                    transform: 'translate(-50%, -50%)',
+                                }} />
+                            )
+                        })}
+                        <span style={{ fontSize: '1.5rem', opacity: 0.3, position: 'absolute' }}>[ART PREVIEW]</span>
+                    </div>
+                    
+                    {/* RIGHT COLUMN: Detail Display */}
+                    <div style={{ 
+                        flex: 1, 
+                        marginTop: '-15px', 
+                    }}>
+                        
+                        {/* Title and ID Header */}
+                        <div style={{ 
+                            borderBottom: '1px solid #333',
+                            paddingBottom: '0.5rem', 
+                            marginBottom: '0.75rem' 
+                        }}>
+                            <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.25rem 0' }}>
+                                {commission.title}
+                            </h1>
+                            <p style={{ margin: '0', color: '#aaa', fontSize: '1rem' }}> 
+                                Commission #{commission.id}
+                            </p>
+                            <span style={{ 
+                                padding: '0.2rem 0.5rem', 
+                                borderRadius: '5px',
+                                fontSize: '0.8rem', 
+                                fontWeight: 'bold',
+                                marginTop: '0.5rem',
+                                display: 'inline-block',
+                                backgroundColor: commission.isProposal ? '#007FFF' : '#FFD700', 
+                                color: commission.isProposal ? 'white' : 'black'
+                            }}>
+                                {commission.isProposal ? 'ARTIST PROPOSAL' : 'CLIENT COMMISSION'}
+                            </span>
+                        </div>
+
+                        {/* Description */}
+                        <p style={{ 
+                            fontSize: '1rem', 
+                            marginBottom: '1rem', 
+                            color: '#ccc' 
+                        }}>
+                            {commission.description}
+                        </p>
+                        
+                        <div style={{ paddingBottom: '1rem', borderBottom: '1px solid #333', marginBottom: '1rem' }}>
+                            {/* NEW: Value and Deadline in the SAME ROW */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                                {/* Value (Budget) */}
+                                <div style={{ flex: 1, marginBottom: '0.25rem' }}> 
+                                    <h3 style={{ fontSize: '1rem', color: '#aaa', margin: '0 0 0.05rem 0', textTransform: 'uppercase' }}>Value</h3> 
+                                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem', color: '#fff' }}> 
+                                        {commission.value} ETH
+                                    </p>
+                                </div>
+
+                                {/* Deadline */}
+                                <div style={{ flex: 1, marginBottom: '0.25rem' }}> 
+                                    <h3 style={{ fontSize: '1rem', color: '#aaa', margin: '0 0 0.05rem 0', textTransform: 'uppercase' }}>{commission.isProposal ? 'EST. DATE' : 'DEADLINE'}</h3> 
+                                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem', color: '#fff' }}> 
+                                        {commission.finishDate}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Negotiation Status (UPDATED Styling and Content) */}
+                        {commission.statusText === 'Open' && (
+                            <div style={{ 
+                                paddingBottom: '1rem', 
+                                borderBottom: '1px solid #333', 
+                                marginBottom: '1rem'
+                            }}>
+                                <h3 style={{ 
+                                    margin: '0 0 0.75rem 0', 
+                                    fontSize: '1.1rem', 
+                                    color: 'white', // Changed to default color
+                                    textTransform: 'uppercase' // Changed to all uppercase
+                                }}>
+                                    NEGOTIATION STATUS
+                                </h3>
+                                {/* NEW: Combined agreement status */}
+                                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1rem', color: '#ccc' }}>
+                                    Client: {commission.clientAgreed ? '✅' : '❌'} &nbsp;&nbsp; Artist: {commission.artistAgreed ? '✅' : '❌'}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Addresses */}
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <div style={{ marginBottom: '0.25rem' }}>
+                                <h3 style={{ fontSize: '1rem', color: '#aaa', margin: '0 0 0.05rem 0', textTransform: 'uppercase' }}>Client Address</h3> 
+                                <a 
+                                    href={`https://sepolia.etherscan.io/address/${commission.client}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: '#00aaff', textDecoration: 'none', fontWeight: 'bold', fontSize: '1rem' }} 
+                                >
+                                    {shortenAddress(commission.client)} {isClient ? '(You) ↗' : '↗'}
+                                </a>
+                            </div>
+
+                            <div style={{ marginBottom: '0.25rem' }}>
+                                <h3 style={{ fontSize: '1rem', color: '#aaa', margin: '0 0 0.05rem 0', textTransform: 'uppercase' }}>Artist Address</h3> 
+                                <a 
+                                    href={`https://sepolia.etherscan.io/address/${commission.artist}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: isAssigned ? '#00aaff' : '#fff', textDecoration: isAssigned ? 'none' : 'none', fontWeight: 'bold', fontSize: '1rem' }} 
+                                >
+                                    {isAssigned ? `${shortenAddress(commission.artist)}` : '**PENDING**'} {isArtist ? '(You) ↗' : isAssigned ? '↗' : ''}
+                                </a>
+                            </div>
+                        </div>
+
+
+                        {/* Action Buttons */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {renderActionButtons()}
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+}
+
+// Reusable Info Row Component is no longer used for Negotiation Status, but kept for future use if needed.
+const InfoRow = ({ label, value, color, isYou }: { label: string, value: string, color?: string, isYou?: boolean }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px dotted #333' }}>
+        <span style={{ color: '#bbb', fontSize: '1rem' }}>{label}:</span>
+        <span style={{ color: color || 'white', fontWeight: 'bold', fontSize: '1rem' }}>
+            {value} {isYou ? '(You)' : ''}
+        </span>
+    </div>
+);
