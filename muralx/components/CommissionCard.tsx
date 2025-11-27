@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { ethers } from "ethers"; // Needed for types if using TypeScript (optional, but good practice)
+import { ethers } from "ethers";
 
 // --- DATA STRUCTURE & HELPERS (Copied from page.tsx for local use) ---
 interface Commission {
@@ -14,6 +14,8 @@ interface Commission {
     isProposal: boolean;
     finishDate: string;
     budget: string; // Use the property name from your fetch
+    // Add the custom color property from homepage.tsx
+    titleColor: string; 
 }
 
 // Function to generate a consistent random number based on a seed
@@ -31,9 +33,6 @@ const CommissionCard: React.FC<{ item: Commission }> = ({ item }) => {
         router.push(`/commission/${item.id}`);
     };
 
-    // Original minHeight was '200px' plus 1.5rem padding + 3rem padding-bottom.
-    // Reducing the minHeight from '200px' to '150px' and removing the description 
-    // should achieve roughly a 25% reduction in overall height.
     const newMinHeight = '150px'; 
 
     return (
@@ -47,7 +46,6 @@ const CommissionCard: React.FC<{ item: Commission }> = ({ item }) => {
                     border: '1px solid #ccc',
                     borderRadius: '8px',
                     padding: '2rem',
-                    // HEIGHT CHANGE APPLIED HERE
                     minHeight: newMinHeight, 
                     fontSize: '1.2rem',
                     display: 'flex',
@@ -68,32 +66,32 @@ const CommissionCard: React.FC<{ item: Commission }> = ({ item }) => {
                 }}
             >
                 
-                {/* TITLE (Unchanged) */}
+                {/* // --- TITLE (CRITICAL FIX APPLIED HERE) ---
+                */}
                 <h3 style={{ 
-                    fontSize: '1.5rem', 
+                    // 1. **REDUCED FONT SIZE**
+                    fontSize: '1.2rem', 
+                    
                     marginBottom: '1rem', 
-                    color: item.isProposal ? '#a7a5ff' : '#FFD700'
+                    color: item.titleColor || '#FFD700', // Use custom color from data
+
+                    // 2. **PREVENT WRAPPING**
+                    whiteSpace: 'nowrap',
+                    
+                    // 3. **HIDE OVERFLOW**
+                    overflow: 'hidden',
+                    
+                    // 4. **ADD ELLIPSIS (...)**
+                    textOverflow: 'ellipsis', 
                 }}>
                     {item.title}
                 </h3>
                 
-                {/* DESCRIPTION REMOVED: 
-                <p style={{ 
-                    fontSize: '1.1rem', 
-                    marginBottom: '1rem', 
-                    color: '#bbb', 
-                    flexGrow: 1 
-                }}>
-                    {item.description.substring(0, 100)}{item.description.length > 100 ? '...' : ''}
-                </p>
-                */}
-
-                {/* --- PROCEDURAL ART CANVAS --- */}
+                {/* --- PROCEDURAL ART CANVAS (UNCHANGED) --- */}
                 <div 
                     style={{ 
                         position: 'relative', 
                         width: '100%', 
-                        // HEIGHT KEPT THE SAME to maintain aspect ratio of the art
                         height: '200px', 
                         backgroundColor: '#222', 
                         borderRadius: '8px', 

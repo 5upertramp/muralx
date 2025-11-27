@@ -1,29 +1,408 @@
 'use client';
 
-import { useState, useEffect } from "react"; 
+import { useState, useEffect, useMemo } from "react"; 
 import Navbar from "@/components/Navbar";
 import CommissionCard from "@/components/CommissionCard"; // <-- Using the consistent Marketplace card
 import { ethers } from "ethers"; 
 import NewCommissionForm from "@/components/NewCommissionForm"; 
 
 // --- 1. CONTRACT CONSTANTS (Unchanged) ---
-const MURALX_CONTRACT_ADDRESS = '0x6EF00175Da07083A0965ff521C76338D2EC1C9A4'; 
+const MURALX_CONTRACT_ADDRESS = '0xB6fcBDc5b13C42bEeaCA680D1dff5276B5076788'; 
 const MURALX_ABI = [
-    { "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "acceptCommission", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-    { "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "approveCommission", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-    { "inputs": [{ "internalType": "address", "name": "", "type": "address" }, { "internalType": "uint256", "name": "", "type": "uint256" }], "name": "artistCommissions", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
-    { "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }, { "internalType": "address", "name": "_artist", "type": "address" }], "name": "assignArtist", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-    { "inputs": [{ "internalType": "address", "name": "", "type": "address" }, { "internalType": "uint256", "name": "", "type": "uint256" }], "name": "clientCommissions", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
-    { "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "clientFinalizeNegotiation", "outputs": [], "stateMutability": "payable", "type": "function" },
-    { "inputs": [], "name": "commissionIdCounter", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
-    { "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "name": "commissions", "outputs": [{ "internalType": "uint256", "name": "id", "type": "uint256" }, { "internalType": "address", "name": "client", "type": "address" }, { "internalType": "address", "name": "artist", "type": "address" }, { "internalType": "uint256", "name": "value", "type": "uint256" }, { "internalType": "string", "name": "title", "type": "string" }, { "internalType": "string", "name": "description", "type": "string" }, { "internalType": "enum MuralX.CommissionStatus", "name": "status", "type": "uint8" }, { "internalType": "bool", "name": "clientAgreed", "type": "bool" }, { "internalType": "bool", "name": "artistAgreed", "type": "bool" }, { "internalType": "uint256", "name": "finishDate", "type": "uint256" }, { "internalType": "bool", "name": "isProposal", "type": "bool" }], "stateMutability": "view", "type": "function" },
-    { "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }, { "internalType": "uint256", "name": "_newValue", "type": "uint256" }], "name": "counterPropose", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-    { "inputs": [{ "internalType": "address", "name": "_client", "type": "address" }, { "internalType": "string", "name": "_title", "type": "string" }, { "internalType": "string", name: "_description", type: "string" }, { "internalType": "uint256", "name": "_value", "type": "uint256" }], "name": "createArtistProposal", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "payable", "type": "function" },
-    { "inputs": [{ "internalType": "address", name: "_artist", type: "address" }, { "internalType": "string", name: "_title", type: "string" }, { "internalType": "string", name: "_description", type: "string" }, { "internalType": "uint256", name: "_finishDate", type: "uint256" }], "name": "createClientCommission", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "payable", "type": "function" },
-    { "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "deliverWork", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
-    { "inputs": [], "name": "getArtistCommissionIds", "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }], "stateMutability": "view", "type": "function" },
-    { "inputs": [], "name": "getClientCommissionIds", "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }], "stateMutability": "view", "type": "function" },
-    { "inputs": [{ "internalType": "uint256", "name": "_commissionId", "type": "uint256" }], "name": "getCommission", "outputs": [{ "internalType": "uint256", "name": "id", "type": "uint256" }, { "internalType": "address", "name": "client", "type": "address" }, { "internalType": "address", "name": "artist", "type": "address" }, { "internalType": "uint256", "name": "value", "type": "uint256" }, { "internalType": "string", "name": "title", "type": "string" }, { "internalType": "string", "name": "description", "type": "string" }, { "internalType": "enum MuralX.CommissionStatus", "name": "status", "type": "uint8" }, { "internalType": "bool", "name": "clientAgreed", "type": "bool" }, { "internalType": "bool", "name": "artistAgreed", "type": "bool" }, { "internalType": "uint256", "name": "finishDate", "type": "uint256" }, { "internalType": "bool", "name": "isProposal", "type": "bool" }], "stateMutability": "view", "type": "function" }
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_commissionId",
+                "type": "uint256"
+            }
+        ],
+        "name": "acceptCommission",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_commissionId",
+                "type": "uint256"
+            }
+        ],
+        "name": "approveCommission",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_commissionId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "_artist",
+                "type": "address"
+            }
+        ],
+        "name": "assignArtist",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_commissionId",
+                "type": "uint256"
+            }
+        ],
+        "name": "cancelCommission",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_commissionId",
+                "type": "uint256"
+            }
+        ],
+        "name": "clientFinalizeNegotiation",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_commissionId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_newValue",
+                "type": "uint256"
+            }
+        ],
+        "name": "counterPropose",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_client",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_title",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_description",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_value",
+                "type": "uint256"
+            }
+        ],
+        "name": "createArtistProposal",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_artist",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_title",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_description",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_finishDate",
+                "type": "uint256"
+            }
+        ],
+        "name": "createClientCommission",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_commissionId",
+                "type": "uint256"
+            }
+        ],
+        "name": "deliverWork",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "artistCommissions",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "clientCommissions",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "commissionIdCounter",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "commissions",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "id",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "client",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "artist",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "title",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "description",
+                "type": "string"
+            },
+            {
+                "internalType": "enum MuralX.CommissionStatus",
+                "name": "status",
+                "type": "uint8"
+            },
+            {
+                "internalType": "bool",
+                "name": "clientAgreed",
+                "type": "bool"
+            },
+            {
+                "internalType": "bool",
+                "name": "artistAgreed",
+                "type": "bool"
+            },
+            {
+                "internalType": "uint256",
+                "name": "finishDate",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bool",
+                "name": "isProposal",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getArtistCommissionIds",
+        "outputs": [
+            {
+                "internalType": "uint256[]",
+                "name": "",
+                "type": "uint256[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getClientCommissionIds",
+        "outputs": [
+            {
+                "internalType": "uint256[]",
+                "name": "",
+                "type": "uint256[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_commissionId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getCommission",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "id",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "client",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "artist",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "title",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "description",
+                "type": "string"
+            },
+            {
+                "internalType": "enum MuralX.CommissionStatus",
+                "name": "status",
+                "type": "uint8"
+            },
+            {
+                "internalType": "bool",
+                "name": "clientAgreed",
+                "type": "bool"
+            },
+            {
+                "internalType": "bool",
+                "name": "artistAgreed",
+                "type": "bool"
+            },
+            {
+                "internalType": "uint256",
+                "name": "finishDate",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bool",
+                "name": "isProposal",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
 ];
 
 // Helper functions (Unchanged)
@@ -45,11 +424,19 @@ const formatDeadline = (timestamp: number): string => {
 };
 
 
-// --- MAIN DASHBOARD COMPONENT ---
+// --- MAIN DASHBOARD COMPONENT (UPDATED) ---
 export default function DashboardPage() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [commissions, setCommissions] = useState<any[]>([]);
+  
+  // Renamed state to allCommissions for clarity in filtering logic
+  const [allCommissions, setAllCommissions] = useState<any[]>([]);
+
+  // NEW STATE: Filter to control which status is visible. Default is 'Open'.
+  const [selectedStatus, setSelectedStatus] = useState<string>('Open');
+
+  // List of all possible statuses for the filter buttons
+  const STATUS_FILTERS = ['Open', 'In Progress', 'Review Pending', 'Disputed', 'Closed'];
 
   // --- Ethers.js READ Logic (Kept Unchanged) ---
   const fetchCommissions = async () => {
@@ -67,6 +454,7 @@ export default function DashboardPage() {
           
           const contract = new ethers.Contract(MURALX_CONTRACT_ADDRESS, MURALX_ABI, provider);
 
+          // Using the original working call format
           const clientIds = await contract.getClientCommissionIds({ from: userAddress });
           const artistIds = await contract.getArtistCommissionIds({ from: userAddress });
 
@@ -99,7 +487,8 @@ export default function DashboardPage() {
               fetchedCommissions.push(commission);
           }
 
-          setCommissions(fetchedCommissions);
+          // Store all commissions for filtering
+          setAllCommissions(fetchedCommissions);
       } catch (err) {
           console.error("Error fetching commissions:", err);
       } finally {
@@ -117,12 +506,54 @@ export default function DashboardPage() {
       fetchCommissions();
   }
 
+  // --- FILTERED COMMISSIONS LOGIC ---
+  const filteredCommissions = useMemo(() => {
+    if (selectedStatus === 'All') {
+        return allCommissions;
+    }
+    // Filter commissions based on the selected statusText
+    return allCommissions.filter(commission => commission.statusText === selectedStatus);
+  }, [allCommissions, selectedStatus]);
+
+
+  // --- Filter Button Component ---
+  const FilterButton = ({ status }: { status: string }) => (
+    <button
+        onClick={() => setSelectedStatus(status)}
+        style={{
+            padding: '0.5rem 1rem',
+            marginRight: '0.75rem',
+            fontSize: '0.9rem',
+            borderRadius: '20px',
+            border: '1px solid',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            // Active/Inactive styling
+            backgroundColor: selectedStatus === status ? '#FFD700' : 'transparent',
+            color: selectedStatus === status ? 'black' : 'white',
+            borderColor: selectedStatus === status ? '#FFD700' : '#444',
+            transition: 'all 0.2s',
+        }}
+    >
+        {status} ({allCommissions.filter(c => c.statusText === status).length})
+    </button>
+  );
+
   return (
     <div style={{ minHeight: "100vh", background: "black", color: "white" }}>
       <Navbar />
 
       <div style={{ padding: "2rem" }}>
-        {/* REMOVED: <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>My Created/Accepted Items ({commissions.length})</h2> */}
+        
+        {/* --- STATUS FILTER BAR --- */}
+        <div style={{ marginBottom: '2rem', borderBottom: '1px solid #333', paddingBottom: '1rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                {STATUS_FILTERS.map(status => (
+                    <FilterButton key={status} status={status} />
+                ))}
+            </div>
+        </div>
+        {/* ------------------------- */}
 
         {loading ? (
              <div style={{ color: '#aaa' }}>Loading commissions...</div>
@@ -135,11 +566,14 @@ export default function DashboardPage() {
                     gap: '2rem' 
                 }}
              >
-                {commissions.length === 0 ? (
-                    <div style={{ color: '#aaa', gridColumn: '1 / -1' }}>No items found. Create a Commission or Proposal!</div>
+                {/* RENDER filteredCommissions instead of allCommissions */}
+                {filteredCommissions.length === 0 ? (
+                    <div style={{ color: '#aaa', gridColumn: '1 / -1' }}>
+                        No items found with status: "{selectedStatus}".
+                    </div>
                 ) : (
-                    // RENDER THE REUSABLE COMMISSION CARD
-                    commissions.map((commission) => (
+                    // RENDER THE FILTERED COMMISSIONS
+                    filteredCommissions.map((commission) => (
                         <CommissionCard 
                             key={commission.id}
                             item={commission} // CommissionCard expects the data as 'item' prop
